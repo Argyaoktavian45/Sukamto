@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pencatatan Kas & Barang</title>
+    <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <script>tailwind.config={theme:{extend:{colors:{primary:'#1976D2',secondary:'#64B5F6'},borderRadius:{'none':'0px','sm':'4px',DEFAULT:'8px','md':'12px','lg':'16px','xl':'20px','2xl':'24px','3xl':'32px','full':'9999px','button':'8px'}}}}</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css">
+    <style>
+        :where([class^="ri-"])::before { content: "\f3c2"; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F9FAFB;
+        }
+        .rupiah-input::-webkit-inner-spin-button,
+        .rupiah-input::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .rupiah-input {
+            -moz-appearance: textfield;
+        }
+        .modal {
+            transition: opacity 0.3s ease-out;
+        }
+        .toast {
+            animation: slideIn 0.3s ease-out forwards, fadeOut 0.5s 2.5s ease-out forwards;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; visibility: hidden; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="relative min-h-screen pb-16">
+        <!-- Nav Bar -->
+        <nav class="fixed top-0 w-full bg-white shadow-sm z-50">
+            <div class="px-4 py-3 flex items-center justify-between">
+                <div class="font-['Pacifico'] text-primary text-xl">Sukamto</div>
+            </div>
+        </nav>
+
+        <!-- Content Container -->
+        <div class="pt-14 pb-16">
+            <!-- Kas Tab (Default Active) -->
+            <div id="kas-tab" class="px-4 py-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h1 class="text-xl font-semibold">Pencatatan Kas</h1>
+                    <button id="add-kas-btn" class="bg-primary text-white w-8 h-8 rounded-full flex items-center justify-center shadow-md !rounded-button cursor-pointer">
+                        <i class="ri-add-line ri-lg"></i>
+                    </button>
+                </div>
+
+                <!-- Saldo Card -->
+                <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+                    <p class="text-sm text-gray-500 mb-1">Saldo Saat Ini</p>
+                    <h2 id="saldo-display" class="text-2xl font-bold text-primary">Rp 0</h2>
+                </div>
+
+                <!-- Riwayat Kas -->
+                <div class="bg-white rounded-lg shadow-sm p-4 mb-4">
+                    <h3 class="text-lg font-medium mb-3">Riwayat Transaksi</h3>
+                    <div id="kas-empty-state" class="py-8 text-center">
+                        <div class="w-16 h-16 mx-auto mb-3 flex items-center justify-center bg-gray-100 rounded-full">
+                            <i class="ri-file-list-3-line ri-xl text-gray-400"></i>
+                        </div>
+                        <p class="text-gray-500">Belum ada transaksi</p>
+                        <button id="empty-add-kas-btn" class="mt-3 text-primary font-medium text-sm cursor-pointer">Tambah Transaksi</button>
+                    </div>
+                    <div id="kas-table-container" class="hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="border-b text-left text-sm text-gray-500">
+                                        <th class="pb-2 font-medium">Tanggal</th>
+                                        <th class="pb-2 font-medium">Deskripsi</th>
+                                        <th class="pb-2 font-medium text-right">Nominal</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="kas-table-body">
+                                    <!-- Data will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Barang Tab (Initially Hidden) -->
+            <div id="barang-tab" class="hidden px-4 py-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h1 class="text-xl font-semibold">Pencatatan Barang</h1>
+                    <button id="add-barang-btn" class="bg-primary text-white w-8 h-8 rounded-full flex items-center justify-center shadow-md !rounded-button cursor-pointer">
+                        <i class="ri-add-line ri-lg"></i>
+                    </button>
+                </div>
+
+                <!-- Total Barang Card -->
+                <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+                    <p class="text-sm text-gray-500 mb-1">Total Jenis Barang</p>
+                    <h2 id="total-barang-display" class="text-2xl font-bold text-primary">0 Jenis</h2>
+                </div>
+
+                <!-- Daftar Barang -->
+                <div class="bg-white rounded-lg shadow-sm p-4 mb-4">
+                    <h3 class="text-lg font-medium mb-3">Daftar Barang</h3>
+                    <div id="barang-empty-state" class="py-8 text-center">
+                        <div class="w-16 h-16 mx-auto mb-3 flex items-center justify-center bg-gray-100 rounded-full">
+                            <i class="ri-inbox-line ri-xl text-gray-400"></i>
+                        </div>
+                        <p class="text-gray-500">Belum ada barang tercatat</p>
+                        <button id="empty-add-barang-btn" class="mt-3 text-primary font-medium text-sm cursor-pointer">Tambah Barang</button>
+                    </div>
+                    <div id="barang-table-container" class="hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="border-b text-left text-sm text-gray-500">
+                                        <th class="pb-2 font-medium">Tanggal</th>
+                                        <th class="pb-2 font-medium">Nama Barang</th>
+                                        <th class="pb-2 font-medium text-right">Jumlah</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="barang-table-body">
+                                    <!-- Data will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Laporan Tab (Initially Hidden) -->
+            <div id="laporan-tab" class="hidden px-4 py-4">
+                <h1 class="text-xl font-semibold mb-4">Laporan</h1>
+
+                <!-- Filter Date Range -->
+                <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+                    <h3 class="text-sm font-medium mb-3 text-gray-500">Filter Rentang Tanggal</h3>
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="text-sm text-gray-500 mb-1 block">Dari</label>
+                            <input type="date" id="filter-start-date" class="w-full border border-gray-300 rounded p-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-500 mb-1 block">Sampai</label>
+                            <input type="date" id="filter-end-date" class="w-full border border-gray-300 rounded p-2 text-sm">
+                        </div>
+                    </div>
+                    <button id="apply-filter-btn" class="w-full bg-primary text-white py-2 rounded !rounded-button cursor-pointer">Terapkan Filter</button>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-white rounded-lg shadow-sm p-4">
+                        <p class="text-xs text-gray-500 mb-1">Total Saldo Kas</p>
+                        <h2 id="filtered-saldo" class="text-lg font-bold text-primary">Rp 0</h2>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm p-4">
+                        <p class="text-xs text-gray-500 mb-1">Total Jenis Barang</p>
+                        <h2 id="filtered-barang" class="text-lg font-bold text-primary">0 Jenis</h2>
+                    </div>
+                </div>
+                <!-- Laporan Tabs -->
+                <div class="bg-white rounded-lg shadow-sm mb-4 overflow-hidden">
+                    <div class="flex border-b">
+                        <button id="laporan-kas-tab-btn" class="flex-1 py-3 text-center font-medium text-primary border-b-2 border-primary">Kas</button>
+                        <button id="laporan-barang-tab-btn" class="flex-1 py-3 text-center font-medium text-gray-500">Barang</button>
+                    </div>
+                    
+                    <!-- Laporan Kas Content -->
+                    <div id="laporan-kas-content" class="p-4">
+                        <div id="laporan-kas-empty" class="py-6 text-center">
+                            <p class="text-gray-500">Tidak ada data kas dalam rentang tanggal ini</p>
+                        </div>
+                        <div id="laporan-kas-table" class="hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead>
+                                        <tr class="border-b text-left text-sm text-gray-500">
+                                            <th class="pb-2 font-medium">Tanggal</th>
+                                            <th class="pb-2 font-medium">Deskripsi</th>
+                                            <th class="pb-2 font-medium text-right">Nominal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="laporan-kas-table-body">
+                                        <!-- Data will be populated here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Laporan Barang Content -->
+                    <div id="laporan-barang-content" class="p-4 hidden">
+                        <div id="laporan-barang-empty" class="py-6 text-center">
+                            <p class="text-gray-500">Tidak ada data barang dalam rentang tanggal ini</p>
+                        </div>
+                        <div id="laporan-barang-table" class="hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead>
+                                        <tr class="border-b text-left text-sm text-gray-500">
+                                            <th class="pb-2 font-medium">Tanggal</th>
+                                            <th class="pb-2 font-medium">Nama Barang</th>
+                                            <th class="pb-2 font-medium text-right">Jumlah</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="laporan-barang-table-body">
+                                        <!-- Data will be populated here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="fixed bottom-0 w-full bg-white border-t shadow-lg">
+            <div class="grid grid-cols-3 h-16">
+                <button id="kas-tab-btn" class="flex flex-col items-center justify-center text-primary cursor-pointer">
+                    <div class="w-6 h-6 flex items-center justify-center">
+                        <i class="ri-money-dollar-circle-line ri-lg"></i>
+                    </div>
+                    <span class="text-xs mt-1">Kas</span>
+                </button>
+                <button id="barang-tab-btn" class="flex flex-col items-center justify-center text-gray-500 cursor-pointer">
+                    <div class="w-6 h-6 flex items-center justify-center">
+                        <i class="ri-archive-line ri-lg"></i>
+                    </div>
+                    <span class="text-xs mt-1">Barang</span>
+                </button>
+                <button id="laporan-tab-btn" class="flex flex-col items-center justify-center text-gray-500 cursor-pointer">
+                    <div class="w-6 h-6 flex items-center justify-center">
+                        <i class="ri-file-chart-line ri-lg"></i>
+                    </div>
+                    <span class="text-xs mt-1">Laporan</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Tambah Kas -->
+        <div id="kas-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50 opacity-0 pointer-events-none">
+            <div class="bg-white rounded-t-lg w-full max-w-md p-4 transform translate-y-full transition-transform duration-300">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">Tambah Transaksi Kas</h3>
+                    <button id="close-kas-modal" class="w-8 h-8 flex items-center justify-center text-gray-500 cursor-pointer">
+                        <i class="ri-close-line ri-lg"></i>
+                    </button>
+                </div>
+                <form id="kas-form">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
+                        <input type="date" id="kas-date" required class="w-full border border-gray-300 rounded p-2 text-sm">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
+                        <input type="text" id="kas-description" required placeholder="Masukkan deskripsi" class="w-full border border-gray-300 rounded p-2 text-sm">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Jenis Transaksi</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label class="flex items-center p-2 border border-gray-300 rounded cursor-pointer">
+                                <input type="radio" name="transaction-type" value="income" checked class="mr-2">
+                                <span>Pemasukan</span>
+                            </label>
+                            <label class="flex items-center p-2 border border-gray-300 rounded cursor-pointer">
+                                <input type="radio" name="transaction-type" value="expense" class="mr-2">
+                                <span>Pengeluaran</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nominal (Rp)</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="text-gray-500">Rp</span>
+                            </div>
+                            <input type="text" id="kas-amount" required placeholder="0" class="rupiah-input w-full border border-gray-300 rounded p-2 pl-10 text-sm">
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-primary text-white py-3 rounded-lg font-medium !rounded-button cursor-pointer">Simpan</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal Tambah Barang -->
+        <div id="barang-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50 opacity-0 pointer-events-none">
+            <div class="bg-white rounded-t-lg w-full max-w-md p-4 transform translate-y-full transition-transform duration-300">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">Tambah Barang</h3>
+                    <button id="close-barang-modal" class="w-8 h-8 flex items-center justify-center text-gray-500 cursor-pointer">
+                        <i class="ri-close-line ri-lg"></i>
+                    </button>
+                </div>
+                <form id="barang-form">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
+                        <input type="date" id="barang-date" required class="w-full border border-gray-300 rounded p-2 text-sm">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nama Barang</label>
+                        <input type="text" id="barang-name" required placeholder="Masukkan nama barang" class="w-full border border-gray-300 rounded p-2 text-sm">
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Jumlah</label>
+                        <input type="number" id="barang-quantity" required placeholder="0" min="1" class="w-full border border-gray-300 rounded p-2 text-sm">
+                    </div>
+                    <button type="submit" class="w-full bg-primary text-white py-3 rounded-lg font-medium !rounded-button cursor-pointer">Simpan</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Toast Notification -->
+        <div id="toast" class="toast fixed bottom-20 left-0 right-0 mx-auto w-4/5 max-w-sm bg-green-500 text-white p-3 rounded-lg shadow-lg opacity-0 flex items-center justify-between">
+            <span id="toast-message">Berhasil disimpan!</span>
+            <button id="close-toast" class="text-white">
+                <i class="ri-close-line"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize date inputs with current date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('kas-date').value = today;
+            document.getElementById('barang-date').value = today;
+            
+            // Set default filter dates (last 30 days)
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            document.getElementById('filter-start-date').value = thirtyDaysAgo.toISOString().split('T')[0];
+            document.getElementById('filter-end-date').value = today;
+            
+            // Initialize data from localStorage
+            let kasData = JSON.parse(localStorage.getItem('kasData')) || [];
+            let barangData = JSON.parse(localStorage.getItem('barangData')) || [];
+            
+            // Format rupiah function
+            function formatRupiah(angka) {
+                return new Intl.NumberFormat('id-ID').format(angka);
+            }
+            
+            // Parse rupiah to number
+            function parseRupiah(rupiah) {
+                return parseInt(rupiah.replace(/\D/g, ''));
+            }
+            
+            // Format date for display
+            function formatDate(dateString) {
+                const options = { day: 'numeric', month: 'short', year: 'numeric' };
+                return new Date(dateString).toLocaleDateString('id-ID', options);
+            }
+            
+            // Show toast message
+            function showToast(message, isSuccess = true) {
+                const toast = document.getElementById('toast');
+                document.getElementById('toast-message').textContent = message;
+                
+                // Set color based on success/error
+                toast.className = toast.className.replace('bg-green-500', '').replace('bg-red-500', '');
+                toast.classList.add(isSuccess ? 'bg-green-500' : 'bg-red-500');
+                
+                // Show toast
+                toast.classList.add('opacity-100');
+                toast.style.visibility = 'visible';
+                
+                // Hide toast after 3 seconds
+                setTimeout(() => {
+                    toast.classList.remove('opacity-100');
+                    setTimeout(() => {
+                        toast.style.visibility = 'hidden';
+                    }, 300);
+                }, 3000);
+            }
+            
+            // Update Kas UI
+            function updateKasUI() {
+                const tableBody = document.getElementById('kas-table-body');
+                const emptyState = document.getElementById('kas-empty-state');
+                const tableContainer = document.getElementById('kas-table-container');
+                
+                // Calculate total saldo
+                let totalSaldo = 0;
+                kasData.forEach(item => {
+                    if (item.type === 'income') {
+                        totalSaldo += item.amount;
+                    } else {
+                        totalSaldo -= item.amount;
+                    }
+                });
+                
+                // Update saldo display
+                document.getElementById('saldo-display').textContent = `Rp ${formatRupiah(totalSaldo)}`;
+                
+                // Check if there's data
+                if (kasData.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    tableContainer.classList.add('hidden');
+                    return;
+                }
+                
+                // Sort data by date (newest first)
+                kasData.sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                // Clear table
+                tableBody.innerHTML = '';
+                
+                // Populate table
+                kasData.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-gray-100';
+                    
+                    const dateCell = document.createElement('td');
+                    dateCell.className = 'py-3 text-sm';
+                    dateCell.textContent = formatDate(item.date);
+                    
+                    const descCell = document.createElement('td');
+                    descCell.className = 'py-3 text-sm';
+                    descCell.textContent = item.description;
+                    
+                    const amountCell = document.createElement('td');
+                    amountCell.className = 'py-3 text-sm text-right';
+                    amountCell.textContent = `${item.type === 'expense' ? '-' : '+'} Rp ${formatRupiah(item.amount)}`;
+                    amountCell.classList.add(item.type === 'expense' ? 'text-red-500' : 'text-green-500');
+                    
+                    row.appendChild(dateCell);
+                    row.appendChild(descCell);
+                    row.appendChild(amountCell);
+                    
+                    tableBody.appendChild(row);
+                });
+                
+                // Show table, hide empty state
+                emptyState.classList.add('hidden');
+                tableContainer.classList.remove('hidden');
+            }
+            
+            // Update Barang UI
+            function updateBarangUI() {
+                const tableBody = document.getElementById('barang-table-body');
+                const emptyState = document.getElementById('barang-empty-state');
+                const tableContainer = document.getElementById('barang-table-container');
+                
+                // Update total barang display
+                document.getElementById('total-barang-display').textContent = `${barangData.length} Jenis`;
+                
+                // Check if there's data
+                if (barangData.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    tableContainer.classList.add('hidden');
+                    return;
+                }
+                
+                // Sort data by date (newest first)
+                barangData.sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                // Clear table
+                tableBody.innerHTML = '';
+                
+                // Populate table
+                barangData.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-gray-100';
+                    
+                    const dateCell = document.createElement('td');
+                    dateCell.className = 'py-3 text-sm';
+                    dateCell.textContent = formatDate(item.date);
+                    
+                    const nameCell = document.createElement('td');
+                    nameCell.className = 'py-3 text-sm';
+                    nameCell.textContent = item.name;
+                    
+                    const quantityCell = document.createElement('td');
+                    quantityCell.className = 'py-3 text-sm text-right';
+                    quantityCell.textContent = item.quantity;
+                    
+                    row.appendChild(dateCell);
+                    row.appendChild(nameCell);
+                    row.appendChild(quantityCell);
+                    
+                    tableBody.appendChild(row);
+                });
+                
+                // Show table, hide empty state
+                emptyState.classList.add('hidden');
+                tableContainer.classList.remove('hidden');
+            }
+            
+            // Update Laporan UI
+            function updateLaporanUI() {
+                const startDate = document.getElementById('filter-start-date').value;
+                const endDate = document.getElementById('filter-end-date').value;
+                
+                // Filter data by date range
+                const filteredKasData = kasData.filter(item => {
+                    return item.date >= startDate && item.date <= endDate;
+                });
+                
+                const filteredBarangData = barangData.filter(item => {
+                    return item.date >= startDate && item.date <= endDate;
+                });
+                
+                // Calculate total saldo for filtered data
+                let filteredSaldo = 0;
+                filteredKasData.forEach(item => {
+                    if (item.type === 'income') {
+                        filteredSaldo += item.amount;
+                    } else {
+                        filteredSaldo -= item.amount;
+                    }
+                });
+                
+                // Update summary displays
+                document.getElementById('filtered-saldo').textContent = `Rp ${formatRupiah(filteredSaldo)}`;
+                document.getElementById('filtered-barang').textContent = `${filteredBarangData.length} Jenis`;
+                
+                // Update Kas report table
+                const kasTableBody = document.getElementById('laporan-kas-table-body');
+                const kasEmptyState = document.getElementById('laporan-kas-empty');
+                const kasTable = document.getElementById('laporan-kas-table');
+                
+                if (filteredKasData.length === 0) {
+                    kasEmptyState.classList.remove('hidden');
+                    kasTable.classList.add('hidden');
+                } else {
+                    // Sort data by date (newest first)
+                    filteredKasData.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    
+                    // Clear table
+                    kasTableBody.innerHTML = '';
+                    
+                    // Populate table
+                    filteredKasData.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.className = 'border-b border-gray-100';
+                        
+                        const dateCell = document.createElement('td');
+                        dateCell.className = 'py-3 text-sm';
+                        dateCell.textContent = formatDate(item.date);
+                        
+                        const descCell = document.createElement('td');
+                        descCell.className = 'py-3 text-sm';
+                        descCell.textContent = item.description;
+                        
+                        const amountCell = document.createElement('td');
+                        amountCell.className = 'py-3 text-sm text-right';
+                        amountCell.textContent = `${item.type === 'expense' ? '-' : '+'} Rp ${formatRupiah(item.amount)}`;
+                        amountCell.classList.add(item.type === 'expense' ? 'text-red-500' : 'text-green-500');
+                        
+                        row.appendChild(dateCell);
+                        row.appendChild(descCell);
+                        row.appendChild(amountCell);
+                        
+                        kasTableBody.appendChild(row);
+                    });
+                    
+                    kasEmptyState.classList.add('hidden');
+                    kasTable.classList.remove('hidden');
+                }
+                
+                // Update Barang report table
+                const barangTableBody = document.getElementById('laporan-barang-table-body');
+                const barangEmptyState = document.getElementById('laporan-barang-empty');
+                const barangTable = document.getElementById('laporan-barang-table');
+                
+                if (filteredBarangData.length === 0) {
+                    barangEmptyState.classList.remove('hidden');
+                    barangTable.classList.add('hidden');
+                } else {
+                    // Sort data by date (newest first)
+                    filteredBarangData.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    
+                    // Clear table
+                    barangTableBody.innerHTML = '';
+                    
+                    // Populate table
+                    filteredBarangData.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.className = 'border-b border-gray-100';
+                        
+                        const dateCell = document.createElement('td');
+                        dateCell.className = 'py-3 text-sm';
+                        dateCell.textContent = formatDate(item.date);
+                        
+                        const nameCell = document.createElement('td');
+                        nameCell.className = 'py-3 text-sm';
+                        nameCell.textContent = item.name;
+                        
+                        const quantityCell = document.createElement('td');
+                        quantityCell.className = 'py-3 text-sm text-right';
+                        quantityCell.textContent = item.quantity;
+                        
+                        row.appendChild(dateCell);
+                        row.appendChild(nameCell);
+                        row.appendChild(quantityCell);
+                        
+                        barangTableBody.appendChild(row);
+                    });
+                    
+                    barangEmptyState.classList.add('hidden');
+                    barangTable.classList.remove('hidden');
+                }
+            }
+            
+            // Initialize UI
+            updateKasUI();
+            updateBarangUI();
+            updateLaporanUI();
+            
+            // Tab switching
+            document.getElementById('kas-tab-btn').addEventListener('click', function() {
+                document.getElementById('kas-tab').classList.remove('hidden');
+                document.getElementById('barang-tab').classList.add('hidden');
+                document.getElementById('laporan-tab').classList.add('hidden');
+                
+                document.getElementById('kas-tab-btn').classList.add('text-primary');
+                document.getElementById('kas-tab-btn').classList.remove('text-gray-500');
+                document.getElementById('barang-tab-btn').classList.add('text-gray-500');
+                document.getElementById('barang-tab-btn').classList.remove('text-primary');
+                document.getElementById('laporan-tab-btn').classList.add('text-gray-500');
+                document.getElementById('laporan-tab-btn').classList.remove('text-primary');
+            });
+            
+            document.getElementById('barang-tab-btn').addEventListener('click', function() {
+                document.getElementById('kas-tab').classList.add('hidden');
+                document.getElementById('barang-tab').classList.remove('hidden');
+                document.getElementById('laporan-tab').classList.add('hidden');
+                
+                document.getElementById('kas-tab-btn').classList.add('text-gray-500');
+                document.getElementById('kas-tab-btn').classList.remove('text-primary');
+                document.getElementById('barang-tab-btn').classList.add('text-primary');
+                document.getElementById('barang-tab-btn').classList.remove('text-gray-500');
+                document.getElementById('laporan-tab-btn').classList.add('text-gray-500');
+                document.getElementById('laporan-tab-btn').classList.remove('text-primary');
+            });
+            
+            document.getElementById('laporan-tab-btn').addEventListener('click', function() {
+                document.getElementById('kas-tab').classList.add('hidden');
+                document.getElementById('barang-tab').classList.add('hidden');
+                document.getElementById('laporan-tab').classList.remove('hidden');
+                
+                document.getElementById('kas-tab-btn').classList.add('text-gray-500');
+                document.getElementById('kas-tab-btn').classList.remove('text-primary');
+                document.getElementById('barang-tab-btn').classList.add('text-gray-500');
+                document.getElementById('barang-tab-btn').classList.remove('text-primary');
+                document.getElementById('laporan-tab-btn').classList.add('text-primary');
+                document.getElementById('laporan-tab-btn').classList.remove('text-gray-500');
+                
+                // Update laporan when switching to tab
+                updateLaporanUI();
+            });
+            
+            // Laporan tab switching
+            document.getElementById('laporan-kas-tab-btn').addEventListener('click', function() {
+                document.getElementById('laporan-kas-content').classList.remove('hidden');
+                document.getElementById('laporan-barang-content').classList.add('hidden');
+                document.getElementById('laporan-kas-tab-btn').classList.add('text-primary', 'border-b-2', 'border-primary');
+                document.getElementById('laporan-kas-tab-btn').classList.remove('text-gray-500');
+                document.getElementById('laporan-barang-tab-btn').classList.add('text-gray-500');
+                document.getElementById('laporan-barang-tab-btn').classList.remove('text-primary', 'border-b-2', 'border-primary');
+            });
+            
+            document.getElementById('laporan-barang-tab-btn').addEventListener('click', function() {
+                document.getElementById('laporan-kas-content').classList.add('hidden');
+                document.getElementById('laporan-barang-content').classList.remove('hidden');
+                document.getElementById('laporan-kas-tab-btn').classList.add('text-gray-500');
+                document.getElementById('laporan-kas-tab-btn').classList.remove('text-primary', 'border-b-2', 'border-primary');
+                document.getElementById('laporan-barang-tab-btn').classList.add('text-primary', 'border-b-2', 'border-primary');
+                document.getElementById('laporan-barang-tab-btn').classList.remove('text-gray-500');
+            });
+            
+            // Apply filter
+            document.getElementById('apply-filter-btn').addEventListener('click', function() {
+                updateLaporanUI();
+                showToast('Filter berhasil diterapkan');
+            });
+            
+            // Modal functions
+            function openModal(modalId) {
+                const modal = document.getElementById(modalId);
+                modal.classList.remove('pointer-events-none');
+                modal.classList.add('opacity-100');
+                modal.querySelector('.bg-white').style.transform = 'translateY(0)';
+            }
+            
+            function closeModal(modalId) {
+                const modal = document.getElementById(modalId);
+                modal.querySelector('.bg-white').style.transform = 'translateY(100%)';
+                setTimeout(() => {
+                    modal.classList.add('pointer-events-none');
+                    modal.classList.remove('opacity-100');
+                }, 300);
+            }
+            
+            // Kas modal
+            document.getElementById('add-kas-btn').addEventListener('click', function() {
+                openModal('kas-modal');
+            });
+            
+            document.getElementById('empty-add-kas-btn').addEventListener('click', function() {
+                openModal('kas-modal');
+            });
+            
+            document.getElementById('close-kas-modal').addEventListener('click', function() {
+                closeModal('kas-modal');
+            });
+            
+            // Barang modal
+            document.getElementById('add-barang-btn').addEventListener('click', function() {
+                openModal('barang-modal');
+            });
+            
+            document.getElementById('empty-add-barang-btn').addEventListener('click', function() {
+                openModal('barang-modal');
+            });
+            
+            document.getElementById('close-barang-modal').addEventListener('click', function() {
+                closeModal('barang-modal');
+            });
+            
+            // Format rupiah input
+            document.getElementById('kas-amount').addEventListener('input', function(e) {
+                // Remove non-digits
+                let value = e.target.value.replace(/\D/g, '');
+                
+                // Format with thousand separator
+                if (value !== '') {
+                    e.target.value = formatRupiah(value);
+                }
+            });
+            
+            // Close toast
+            document.getElementById('close-toast').addEventListener('click', function() {
+                document.getElementById('toast').classList.remove('opacity-100');
+            });
+            
+            // Submit Kas form
+            document.getElementById('kas-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const date = document.getElementById('kas-date').value;
+                const description = document.getElementById('kas-description').value;
+                const type = document.querySelector('input[name="transaction-type"]:checked').value;
+                const amountStr = document.getElementById('kas-amount').value;
+                
+                // Validate
+                if (!date || !description || !amountStr) {
+                    showToast('Semua field harus diisi', false);
+                    return;
+                }
+                
+                // Parse amount
+                const amount = parseRupiah(amountStr);
+                
+                if (isNaN(amount) || amount <= 0) {
+                    showToast('Nominal harus lebih dari 0', false);
+                    return;
+                }
+                
+                // Add to data
+                kasData.push({
+                    date,
+                    description,
+                    type,
+                    amount
+                });
+                
+                // Save to localStorage
+                localStorage.setItem('kasData', JSON.stringify(kasData));
+                
+                // Update UI
+                updateKasUI();
+                
+                // Reset form and close modal
+                document.getElementById('kas-form').reset();
+                document.getElementById('kas-date').value = today;
+                closeModal('kas-modal');
+                
+                showToast('Transaksi berhasil disimpan');
+            });
+            
+            // Submit Barang form
+            document.getElementById('barang-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const date = document.getElementById('barang-date').value;
+                const name = document.getElementById('barang-name').value;
+                const quantity = parseInt(document.getElementById('barang-quantity').value);
+                
+                // Validate
+                if (!date || !name || isNaN(quantity) || quantity <= 0) {
+                    showToast('Semua field harus diisi dengan benar', false);
+                    return;
+                }
+                
+                // Add to data
+                barangData.push({
+                    date,
+                    name,
+                    quantity
+                });
+                
+                // Save to localStorage
+                localStorage.setItem('barangData', JSON.stringify(barangData));
+                
+                // Update UI
+                updateBarangUI();
+                
+                // Reset form and close modal
+                document.getElementById('barang-form').reset();
+                document.getElementById('barang-date').value = today;
+                closeModal('barang-modal');
+                
+                showToast('Barang berhasil disimpan');
+            });
+            
+
+            // Update UI with sample data
+            updateKasUI();
+            updateBarangUI();
+        });
+    </script>
+</body>
+</html>
